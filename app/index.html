@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <title>Kurzusok</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; }
+        .container { max-width: 700px; padding: 20px; border: 1px solid #ccc; background: #f9f9f9; margin-bottom: 20px; }
+        input { width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; }
+        button { padding: 8px 12px; background: #007bff; color: white; border: none; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border-bottom: 1px solid #ddd; padding: 8px; text-align: left; }
+        .full { color: #dc3545; font-weight: bold; }
+        #message { margin-top: 15px; font-weight: bold; padding: 10px; display: none; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Kurzusok</h2>
+    <table>
+        <thead>
+            <tr><th>ID</th><th>Név</th><th>Létszám</th><th></th></tr>
+        </thead>
+        <tbody id="courseList"></tbody>
+    </table>
+    <button onclick="loadCourses()" style="margin-top: 10px;">Frissítés</button>
+</div>
+
+<div class="container">
+    <h3>Új kurzus (admin)</h3>
+    <label for="courseName">Név:</label>
+    <input type="text" id="courseName" placeholder="pl. Adatbázisok">
+
+    <label for="courseMax">Max. létszám:</label>
+    <input type="number" id="courseMax" placeholder="pl. 40">
+
+    <button onclick="createCourse()" style="background: #28a745; width: 100%;">Kurzus létrehozása</button>
+
+    <div id="message"></div>
+</div>
+
+<script>
+    async function request(url, method, body) {
+        try {
+            const options = { method: method, headers: { 'Content-Type': 'application/json' } };
+            if (body) options.body = JSON.stringify(body);
+            const response = await fetch(url, options);
+            const data = await response.json();
+
+            if (response.ok) {
+                return { ok: true, data: data };
+            }
+            let errorMsg = typeof data.detail === 'string' ? data.detail : "Hibás adatformátum (Validációs hiba)";
+            showMessage(errorMsg, 'error');
+            return { ok: false };
+        } catch (err) {
+            showMessage('Hálózati hiba történt.', 'error');
+            return { ok: false };
+        }
+    }
+
+    async function loadCourses() {
+        const result = await request('/api/courses', 'GET');
+        if (!result.ok) return;
+
+        const tbody = document.getElementById('courseList');
+        tbody.innerHTML = '';
+
+        result.data.forEach(course => {
+            const tr = document.createElement('tr');
+
+            const full = course.current_capacity >= course.max_capacity;
+            const cells = [course.id, course.name, course.current_capacity + ' / ' + course.max_capacity];
+            cells.forEach((text, i) => {
+                const td = document.createElement('td');
+                td.textContent = text;
+                if (i === 2 && full) td.className = 'full';
+                tr.appendChild(td);
+            });
+
+            const actions = document.createElement('td');
+
+            const editBtn = document.createElement('button');
+            editBtn.textContent = 'Szerkesztés';
+            editBtn.onclick = () => editCourse(course);
+            actions.appendChild(editBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.textContent = 'Törlés';
+            delBtn.style.background = '#dc3545';
+            delBtn.style.marginLeft = '5px';
+            delBtn.onclick = () => deleteCourse(course.id);
+            actions.appendChild(delBtn);
+
+            tr.appendChild(actions);
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function createCourse() {
+        const name = document.getElementById('courseName').value.trim();
+        const max = document.getElementById('courseMax').value;
+
+        if (!name || !max) {
+            showMessage('Kérlek adj meg minden adatot!', 'error');
+            return;
+        }
+
+        const result = await request('/api/courses', 'POST', { name: name, max_capacity: parseInt(max) });
+        if (result.ok) {
+            showMessage('Kurzus létrehozva: ' + result.data.name, 'success');
+            document.getElementById('courseName').value = '';
+            document.getElementById('courseMax').value = '';
+            loadCourses();
+        }
+    }
+
+    async function editCourse(course) {
+        const name = prompt('Új név:', course.name);
+        if (name === null) return;
+        const max = prompt('Új max. létszám:', course.max_capacity);
+        if (max === null) return;
+
+        const result = await request('/api/courses/' + course.id, 'PUT', { name: name, max_capacity: parseInt(max) });
+        if (result.ok) {
+            showMessage('Kurzus módosítva.', 'success');
+            loadCourses();
+        }
+    }
+
+    async function deleteCourse(id) {
+        if (!confirm('Biztosan törlöd a kurzust?')) return;
+
+        const result = await request('/api/courses/' + id, 'DELETE');
+        if (result.ok) {
+            showMessage(result.data.message, 'success');
+            loadCourses();
+        }
+    }
+
+    function showMessage(text, type) {
+        const msgDiv = document.getElementById('message');
+        msgDiv.textContent = text;
+        msgDiv.className = type;
+        msgDiv.style.display = 'block';
+    }
+
+    loadCourses();
+</script>
+
+</body>
+</html>

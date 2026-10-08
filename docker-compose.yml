@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: course_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d course_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  course-service:
+    build: ./app
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://admin:password@db:5432/course_db
+      CACHE_TTL_SECONDS: "10"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
