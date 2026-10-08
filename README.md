@@ -1,49 +1,91 @@
 # Course Service
 
-## Api
-### GET /api/courses
-* Lekéri az összes kurzust
-* Válaszba JSON-t ad pl: [{"id": 1, "name": "Analízis 1", "max_capacity": 2, "current_capacity": 1}]
+Kurzuskatalógus és férőhely. A lista és az admin műveletek publikusak, helyet foglalni és felszabadítani az Enroll szolgáltatása tud.
 
-### GET /api/courses/{course_id}
-* Lekér egy kurzust
-* JSON-t ad vissza pl: {"id": 1, "name": "Analízis 1", "max_capacity": 2, "current_capacity": 1}
-#### * Válaszok:
-* 200 Sikeres
-* 404 Not Found: Kurzus nem található
+## Publikus végpontok
 
-### POST /api/courses
-* Új kurzus létrehozása (admin)
-* Kérés inputja JSON pl: {"name": "Adatbázisok", "max_capacity": 40}
-#### * Válaszok:
-* 201 Created: a létrehozott kurzus JSON-ja
-* 422 Validációs hiba (üres név / nem pozitív kapacitás)
+### `GET /api/courses`
 
-### PUT /api/courses/{course_id}
-* Kurzus módosítása (admin), a mezők külön is megadhatók
-* Kérés inputja JSON pl: {"name": "Analízis 2", "max_capacity": 50}
-#### * Válaszok:
-* 200 Sikeres: a módosított kurzus JSON-ja
-* 400 Bad Request: A kapacitás nem lehet kisebb a jelenlegi létszámnál
-* 404 Not Found: Kurzus nem található
+Az összes kurzus.
 
-### DELETE /api/courses/{course_id}
-* Kurzus törlése (admin)
-#### * Válaszok:
-* 200 Sikeres {"status": "success", "message": "Kurzus törölve."}
-* 400 Bad Request: A kurzusnak van feliratkozott hallgatója, nem törölhető
-* 404 Not Found: Kurzus nem található
+```json
+[{"id": 1, "name": "Analízis 1", "max_capacity": 2, "current_capacity": 0}]
+```
 
-### POST /internal/courses/{course_id}/reserve
-* Belső végpont az Enrollnak: egy hely lefoglalása
-#### * Válaszok:
-* 200 Sikeres {"status": "success", "course": {...}}
-* 400 Bad Request: Sikertelen tárgyfelvétel: A kurzus betelt!
-* 404 Not Found: Kurzus nem található
+### `GET /api/courses/{course_id}`
 
-### POST /internal/courses/{course_id}/release
-* Belső végpont az Enrollnak: egy hely felszabadítása tárgyleadáskor
-#### * Válaszok:
-* 200 Sikeres {"status": "success", "course": {...}}
-* 400 Bad Request: Nincs mit felszabadítani
-* 404 Not Found: Kurzus nem található
+Egy kurzus.
+
+| Kód | Eredmény |
+| --- | --- |
+| 200 | A kurzus JSON-ja |
+| 404 | Kurzus nem található |
+
+### `POST /api/courses`
+
+Új kurzus, adminnak.
+
+```json
+{"name": "Adatbázisok", "max_capacity": 40}
+```
+
+| Kód | Eredmény |
+| --- | --- |
+| 201 | A létrehozott kurzus |
+| 422 | Üres név vagy nem pozitív kapacitás |
+
+### `PUT /api/courses/{course_id}`
+
+Módosítás, adminnak. A név és a kapacitás külön is küldhető.
+
+```json
+{"name": "Analízis 2", "max_capacity": 50}
+```
+
+| Kód | Eredmény |
+| --- | --- |
+| 200 | A módosított kurzus |
+| 400 | A kapacitás kisebb lenne a jelenlegi létszámnál |
+| 404 | Kurzus nem található |
+
+### `DELETE /api/courses/{course_id}`
+
+Törlés, adminnak.
+
+| Kód | Eredmény |
+| --- | --- |
+| 200 | `{"status": "success", "message": "Kurzus törölve."}` |
+| 400 | Van feliratkozott hallgató, nem törölhető |
+| 404 | Kurzus nem található |
+
+## Belső végpontok
+
+Ezeket az Enroll hívja. Nincs kérés törzs. A foglalás nem tudja túllépni a keretet.
+
+### `POST /internal/courses/{course_id}/reserve`
+
+Egy hely lefoglalása.
+
+| Kód | Eredmény |
+| --- | --- |
+| 200 | `{"status": "success", "course": {...}}` |
+| 400 | A kurzus betelt |
+| 404 | Kurzus nem található |
+
+### `POST /internal/courses/{course_id}/release`
+
+Egy hely felszabadítása tárgyleadáskor.
+
+| Kód | Eredmény |
+| --- | --- |
+| 200 | `{"status": "success", "course": {...}}` |
+| 400 | Nincs mit felszabadítani |
+| 404 | Kurzus nem található |
+
+## Futtatás
+
+Docker mellett a projekt mappájában: `docker compose up --build`.
+
+Az API a http://localhost:8001 címen van, a felület ugyanezen a címen nyílik meg. A Postgres a gépen az 5433-as porton figyel.
+
+Kész kurzusok: 1, Analízis 1, max 2 fő. 2, Programozás Alapjai, max 30 fő.
