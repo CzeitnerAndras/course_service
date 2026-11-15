@@ -2,6 +2,7 @@ import os
 import time
 import threading
 from typing import Optional
+from urllib.parse import quote, urlparse, urlunparse
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +11,22 @@ from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, Integer, String, CheckConstraint, update, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://admin:password@localhost:5433/course_db")
+def database_url() -> str:
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        raise ValueError("Hiba: A DATABASE_URL környezeti változó nincs beállítva!")
+    password = os.getenv("DB_PASSWORD")
+    if not password:
+        return url
+    parsed = urlparse(url)
+    username = quote(parsed.username or "", safe="")
+    host = parsed.hostname or ""
+    port = f":{parsed.port}" if parsed.port else ""
+    netloc = f"{username}:{quote(password, safe='')}@{host}{port}"
+    return urlunparse(parsed._replace(netloc=netloc))
+
+
+DATABASE_URL = database_url()
 CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", "10"))
 
 engine = create_engine(DATABASE_URL, pool_size=10, max_overflow=20, pool_pre_ping=True)
